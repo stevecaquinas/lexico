@@ -2,119 +2,173 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Lexico Word Game</title>
+    <title>Lexico Guess Game</title>
+    <style>
+        body {
+            background: #111;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #game {
+            margin: 40px auto;
+            padding: 30px 30px 20px 30px;
+            background: #222;
+            border-radius: 14px;
+            box-shadow: 0 0 24px #0008;
+            min-width: 350px;
+            max-width: 95vw;
+        }
+        #definition {
+            margin-bottom: 16px;
+            font-size: 1.2em;
+        }
+        #blanks {
+            font-size: 2.2em;
+            letter-spacing: 0.3em;
+            margin-bottom: 22px;
+            margin-top: 8px;
+        }
+        #guess {
+            font-size: 1.3em;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            background: #181818;
+            color: #fff;
+            margin-right: 8px;
+        }
+        button {
+            padding: 10px 18px;
+            border-radius: 6px;
+            border: none;
+            background: #333;
+            color: #fff;
+            margin: 4px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        button:active {
+            background: #555;
+        }
+        #message {
+            min-height: 1.5em;
+            margin-top: 16px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+    </style>
 </head>
 <body>
-<div id="game">
-    <h2>LEXICO</h2>
-    <div class="attempt" id="attempt"></div>
-    <div class="definition" id="definition"></div>
-    <input type="text" id="guess" placeholder="Enter word">
-    <button id="submitBtn" onclick="submitGuess()">Submit</button>
-    <button id="hintBtn" onclick="hintClick()">Hint</button>
-    <div class="score" id="score"></div>
-    <div id="message"></div>
-    <button onclick="restartGame()">Restart</button>
-</div>
-<script>
-let words = {};
-let currentWord, currentDef, attempt, score, gameOver;
+    <div id="game">
+        <h2>LEXICO</h2>
+        <div id="definition"></div>
+        <div id="blanks"></div>
+        <input type="text" id="guess" placeholder="Enter your guess" autocomplete="off" />
+        <button onclick="submitGuess()" id="submitBtn">Submit</button>
+        <button onclick="giveHint()" id="hintBtn">Hint</button>
+        <button onclick="restartGame()" id="restartBtn">Restart</button>
+        <div id="message"></div>
+    </div>
+    <script>
+        let words = [];
+        let currentWord = '', currentDef = '', attempt = [], gameOver = false;
+        let maxHints = 3, hintsUsed = 0;
 
-function parseStrangeWords(text) {
-    const out = {};
-    text.trim().split('\n').forEach(line => {
-        const [word, ...def] = line.split(',');
-        if(word && def.length) out[word.trim()] = def.join(',').trim();
-    });
-    return out;
-}
+        async function loadWords() {
+            try {
+                const res = await fetch('strangewords.txt');
+                if (!res.ok) throw new Error("Cannot load strangewords.txt");
+                const text = await res.text();
+                words = text.trim().split('\n')
+                    .map(line => {
+                        const idx = line.indexOf(',');
+                        if (idx === -1) return null;
+                        return {
+                            word: line.slice(0, idx).trim().toLowerCase(),
+                            def: line.slice(idx + 1).trim()
+                        };
+                    }).filter(Boolean);
+                if (words.length === 0) throw new Error("No valid words in file.");
+                restartGame();
+            } catch (e) {
+                document.getElementById('definition').textContent = "Error: " + e.message;
+                document.getElementById('submitBtn').disabled = true;
+                document.getElementById('hintBtn').disabled = true;
+                document.getElementById('restartBtn').disabled = true;
+            }
+        }
 
-function pickRandomWord() {
-    const keys = Object.keys(words);
-    const idx = Math.floor(Math.random() * keys.length);
-    currentWord = keys[idx].toLowerCase();
-    currentDef = words[keys[idx]];
-    attempt = Array(currentWord.length).fill('_');
-    score = 100;
-    gameOver = false;
-}
+        function pickWord() {
+            const idx = Math.floor(Math.random() * words.length);
+            currentWord = words[idx].word;
+            currentDef = words[idx].def;
+            attempt = Array(currentWord.length).fill('_');
+            hintsUsed = 0;
+            gameOver = false;
+        }
 
-function updateDisplay() {
-    document.getElementById('attempt').textContent = attempt.join(' ');
-    document.getElementById('definition').textContent = "Definition: " + currentDef;
-    document.getElementById('score').textContent = "Score: " + Math.round(score) + "%";
-    document.getElementById('guess').disabled = gameOver;
-    document.getElementById('submitBtn').disabled = gameOver;
-    document.getElementById('hintBtn').disabled = gameOver;
-}
+        function updateDisplay(message="") {
+            document.getElementById('definition').textContent = "Definition: " + currentDef;
+            document.getElementById('blanks').textContent = attempt.join(' ');
+            document.getElementById('message').textContent = message;
+            document.getElementById('guess').value = '';
+            document.getElementById('guess').disabled = gameOver;
+            document.getElementById('submitBtn').disabled = gameOver;
+            document.getElementById('hintBtn').disabled = gameOver || hintsUsed >= maxHints || !attempt.includes('_');
+        }
 
-function submitGuess() {
-    if (gameOver) return;
-    const guess = document.getElementById('guess').value.trim().toLowerCase();
-    if (!guess) return;
-    if (guess === currentWord) {
-        attempt = currentWord.split('');
-        document.getElementById('message').textContent = `CORRECT! You scored ${Math.round(score)}%`;
-        gameOver = true;
-        endGame();
-    } else {
-        document.getElementById('message').textContent = "Try again!";
-    }
-    updateDisplay();
-    document.getElementById('guess').value = '';
-}
+        function submitGuess() {
+            if (gameOver) return;
+            const guess = document.getElementById('guess').value.trim().toLowerCase();
+            if (!guess) return;
+            if (guess.length !== currentWord.length) {
+                updateDisplay("Guess must be " + currentWord.length + " letters.");
+                return;
+            }
+            if (guess === currentWord) {
+                attempt = currentWord.split('');
+                gameOver = true;
+                updateDisplay("Correct! The word was: " + currentWord);
+            } else {
+                updateDisplay("Try again!");
+            }
+        }
 
-function hintClick() {
-    if (gameOver) return;
-    giveHint();
-    checkBlanks();
-    updateDisplay();
-}
+        function giveHint() {
+            if (gameOver || hintsUsed >= maxHints) return;
+            let unrevealed = [];
+            for (let i = 0; i < currentWord.length; i++) {
+                if (attempt[i] === '_') unrevealed.push(i);
+            }
+            if (unrevealed.length === 0) return;
+            const idx = unrevealed[Math.floor(Math.random() * unrevealed.length)];
+            attempt[idx] = currentWord[idx];
+            hintsUsed++;
+            if (!attempt.includes('_')) {
+                gameOver = true;
+                updateDisplay("You lose! The word was: " + currentWord);
+            } else {
+                updateDisplay("Hint used: " + hintsUsed + "/" + maxHints);
+            }
+        }
 
-function giveHint() {
-    score *= 0.9;
-    const unrevealed = [];
-    for (let i = 0; i < currentWord.length; i++) {
-        if (attempt[i] === '_') unrevealed.push(i);
-    }
-    if (unrevealed.length > 0) {
-        const idx = unrevealed[Math.floor(Math.random() * unrevealed.length)];
-        attempt[idx] = currentWord[idx];
-    }
-}
+        function restartGame() {
+            pickWord();
+            updateDisplay();
+        }
 
-function checkBlanks() {
-    if (!attempt.includes('_')) {
-        document.getElementById('message').textContent = "You lose! The word was: " + currentWord;
-        score = 0;
-        gameOver = true;
-        endGame();
-    }
-}
+        document.getElementById('guess').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') submitGuess();
+        });
 
-function endGame() {
-    document.getElementById('guess').disabled = true;
-    document.getElementById('submitBtn').disabled = true;
-    document.getElementById('hintBtn').disabled = true;
-}
-
-function restartGame() {
-    pickRandomWord();
-    updateDisplay();
-    document.getElementById('guess').value = '';
-    document.getElementById('message').textContent = '';
-}
-
-fetch('strangewords.txt')
-    .then(response => response.text())
-    .then(text => {
-        words = parseStrangeWords(text);
-        pickRandomWord();
-        updateDisplay();
-    })
-    .catch(err => {
-        document.getElementById('game').textContent = "Failed to load word list.";
-    });
-</script>
+        loadWords();
+    </script>
 </body>
 </html>

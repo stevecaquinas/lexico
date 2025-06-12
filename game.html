@@ -79,6 +79,7 @@ function giveHint() {
 function checkBlanks() {
     if (!attempt.includes('_')) {
         document.getElementById('message').textContent = "You lose! The word was: " + currentWord;
+        score = 0;
         gameOver = true;
         endGame();
     }

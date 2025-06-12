@@ -10,14 +10,14 @@
     <div class="attempt" id="attempt"></div>
     <div class="definition" id="definition"></div>
     <input type="text" id="guess" placeholder="Enter word or 'H' for hint">
-    <button onclick="submitGuess()">Submit</button>
+    <button id="submitBtn" onclick="submitGuess()">Submit</button>
     <div class="score" id="score"></div>
     <div id="message"></div>
     <button onclick="restartGame()">Restart</button>
 </div>
 <script>
 let words = {};
-let currentWord, currentDef, attempt, score;
+let currentWord, currentDef, attempt, score, gameOver;
 
 function parseStrangeWords(text) {
     const out = {};
@@ -35,26 +35,31 @@ function pickRandomWord() {
     currentDef = words[keys[idx]];
     attempt = Array(currentWord.length).fill('_');
     score = 100;
+    gameOver = false;
 }
 
 function updateDisplay() {
     document.getElementById('attempt').textContent = attempt.join(' ');
     document.getElementById('definition').textContent = "Definition: " + currentDef;
     document.getElementById('score').textContent = "Score: " + Math.round(score) + "%";
-    document.getElementById('message').textContent = '';
+    document.getElementById('guess').disabled = gameOver;
+    document.getElementById('submitBtn').disabled = gameOver;
 }
 
 function submitGuess() {
+    if (gameOver) return;
     const guess = document.getElementById('guess').value.trim().toLowerCase();
     if (!guess) return;
     if (guess === currentWord) {
         document.getElementById('message').textContent = `CORRECT! You scored ${Math.round(score)}%`;
+        gameOver = true;
+        endGame();
     } else if (guess === 'h') {
         giveHint();
+        checkBlanks();
     } else {
         document.getElementById('message').textContent = "Try again!";
     }
-    checkBlanks();
     updateDisplay();
     document.getElementById('guess').value = '';
 }
@@ -74,16 +79,23 @@ function giveHint() {
 function checkBlanks() {
     if (!attempt.includes('_')) {
         document.getElementById('message').textContent = "You lose! The word was: " + currentWord;
+        gameOver = true;
+        endGame();
     }
+}
+
+function endGame() {
+    document.getElementById('guess').disabled = true;
+    document.getElementById('submitBtn').disabled = true;
 }
 
 function restartGame() {
     pickRandomWord();
     updateDisplay();
     document.getElementById('guess').value = '';
+    document.getElementById('message').textContent = '';
 }
 
-// Fetch the file and start the game
 fetch('strangewords.txt')
     .then(response => response.text())
     .then(text => {

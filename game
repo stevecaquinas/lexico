@@ -1,111 +1,99 @@
-using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.Tracing;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lexico Word Game</title>
+</head>
+<body>
+<div id="game">
+    <h2>LEXICO</h2>
+    <div class="attempt" id="attempt"></div>
+    <div class="definition" id="definition"></div>
+    <input type="text" id="guess" placeholder="Enter word or 'H' for hint">
+    <button onclick="submitGuess()">Submit</button>
+    <div class="score" id="score"></div>
+    <div id="message"></div>
+    <button onclick="restartGame()">Restart</button>
+</div>
+<script>
+let words = {};
+let currentWord, currentDef, attempt, score;
 
-class program
-{
-    static void Main()
-    {
-        Console.Clear();
-        Dictionary<string, string> words = new Dictionary<string, string>();
-        getWords(ref words);
-        Random rand = new Random();
-        int randomIndex = rand.Next(0, words.Count);
-        //Console.WriteLine(words.ElementAt(randomIndex).Key + " - " + words.ElementAt(randomIndex).Value);
-
-        string newword = words.ElementAt(randomIndex).Key.ToLower();
-        string newdef = words.ElementAt(randomIndex).Value;
-        char[] attempt = Enumerable.Repeat('_', newword.Length).ToArray();
-        //Console.WriteLine("\nPress any key...");
-        //Console.ReadKey();
-        double score = 100;
-        playGame(newword, newdef, attempt, ref score);        
-    }
-
-    static void getWords(ref Dictionary<string, string> words)
-    {
-        using (StreamReader sr = new StreamReader("strangewords.txt"))
-        {
-            while (!sr.EndOfStream)
-            {
-                string? line = sr.ReadLine();
-                if (!string.IsNullOrWhiteSpace(line))
-                {
-                    string[] parts = line.Split(',', 2);
-                    if (parts.Length == 2)
-                    {
-                        string word = parts[0].Trim();
-                        string meaning = parts[1].Trim();
-                        words[word] = meaning;
-                    }
-                }
-            }
-        }
-    }
-
-    static void playGame(string word, string defn, char[] attempt, ref double score)
-    {        
-        Console.Clear();
-        Console.WriteLine("\n\tL E X I C O\n\n\n");
-
-        Console.WriteLine("\n\t" + string.Join(" ", attempt));
-        Console.WriteLine("\n\nDefinition: " + defn + "\n");
-
-        string entry = "";
-        bool guessed = false;
-
-        while (!guessed)
-        {
-            Console.WriteLine("Enter word or 'H' for hint...");
-            entry = Console.ReadLine().ToLower();
-            if (entry == word)
-            {
-                Console.WriteLine($"CORRECT! You scored {Math.Round(score,0)}%");
-                Console.WriteLine("Press any key to continue...");
-                Console.ReadKey();
-                Main();
-            }
-            else if (entry == "h")
-            {
-                giveHint(word, attempt, ref score);
-                Console.WriteLine(string.Join(" ", attempt));
-            }
-            int blanks = 0;
-            for (int i = 0; i < attempt.Length; i++)
-            {
-                if (attempt[i] == '_')
-                {
-                    blanks++;
-                }
-            }
-            if (blanks == 0)
-            {
-                Console.WriteLine("You lose sorry!");
-                Console.WriteLine("Press any key...");
-                Console.ReadKey();
-                Main();
-            }
-            else
-            {
-                playGame(word, defn, attempt, ref score);
-            }
-        }
-    }
-
-    static void giveHint(string word, char[] attempt, ref double score)
-    {
-        score *= 0.9;
-        List<int> unrevealed = new List<int>();
-        for (int i = 0; i < word.Length; i++)
-        {
-            if (attempt[i] == '_')
-                unrevealed.Add(i);
-        }
-        if (unrevealed.Count > 0)
-        {
-            Random rand = new Random();
-            int idx = unrevealed[rand.Next(unrevealed.Count)];
-            attempt[idx] = word[idx];
-        }
-    }
-
+function parseStrangeWords(text) {
+    const out = {};
+    text.trim().split('\n').forEach(line => {
+        const [word, ...def] = line.split(',');
+        if(word && def.length) out[word.trim()] = def.join(',').trim();
+    });
+    return out;
 }
+
+function pickRandomWord() {
+    const keys = Object.keys(words);
+    const idx = Math.floor(Math.random() * keys.length);
+    currentWord = keys[idx].toLowerCase();
+    currentDef = words[keys[idx]];
+    attempt = Array(currentWord.length).fill('_');
+    score = 100;
+}
+
+function updateDisplay() {
+    document.getElementById('attempt').textContent = attempt.join(' ');
+    document.getElementById('definition').textContent = "Definition: " + currentDef;
+    document.getElementById('score').textContent = "Score: " + Math.round(score) + "%";
+    document.getElementById('message').textContent = '';
+}
+
+function submitGuess() {
+    const guess = document.getElementById('guess').value.trim().toLowerCase();
+    if (!guess) return;
+    if (guess === currentWord) {
+        document.getElementById('message').textContent = `CORRECT! You scored ${Math.round(score)}%`;
+    } else if (guess === 'h') {
+        giveHint();
+    } else {
+        document.getElementById('message').textContent = "Try again!";
+    }
+    checkBlanks();
+    updateDisplay();
+    document.getElementById('guess').value = '';
+}
+
+function giveHint() {
+    score *= 0.9;
+    const unrevealed = [];
+    for (let i = 0; i < currentWord.length; i++) {
+        if (attempt[i] === '_') unrevealed.push(i);
+    }
+    if (unrevealed.length > 0) {
+        const idx = unrevealed[Math.floor(Math.random() * unrevealed.length)];
+        attempt[idx] = currentWord[idx];
+    }
+}
+
+function checkBlanks() {
+    if (!attempt.includes('_')) {
+        document.getElementById('message').textContent = "You lose! The word was: " + currentWord;
+    }
+}
+
+function restartGame() {
+    pickRandomWord();
+    updateDisplay();
+    document.getElementById('guess').value = '';
+}
+
+// Fetch the file and start the game
+fetch('strangewords.txt')
+    .then(response => response.text())
+    .then(text => {
+        words = parseStrangeWords(text);
+        pickRandomWord();
+        updateDisplay();
+    })
+    .catch(err => {
+        document.getElementById('game').textContent = "Failed to load word list.";
+    });
+</script>
+</body>
+</html>

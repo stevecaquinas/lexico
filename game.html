@@ -53,6 +53,7 @@ function submitGuess() {
     const guess = document.getElementById('guess').value.trim().toLowerCase();
     if (!guess) return;
     if (guess === currentWord) {
+        attempt = currentWord.split('');
         document.getElementById('message').textContent = `CORRECT! You scored ${Math.round(score)}%`;
         gameOver = true;
         endGame();

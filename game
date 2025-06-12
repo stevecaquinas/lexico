@@ -1,0 +1,111 @@
+using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.Tracing;
+
+class program
+{
+    static void Main()
+    {
+        Console.Clear();
+        Dictionary<string, string> words = new Dictionary<string, string>();
+        getWords(ref words);
+        Random rand = new Random();
+        int randomIndex = rand.Next(0, words.Count);
+        //Console.WriteLine(words.ElementAt(randomIndex).Key + " - " + words.ElementAt(randomIndex).Value);
+
+        string newword = words.ElementAt(randomIndex).Key.ToLower();
+        string newdef = words.ElementAt(randomIndex).Value;
+        char[] attempt = Enumerable.Repeat('_', newword.Length).ToArray();
+        //Console.WriteLine("\nPress any key...");
+        //Console.ReadKey();
+        double score = 100;
+        playGame(newword, newdef, attempt, ref score);        
+    }
+
+    static void getWords(ref Dictionary<string, string> words)
+    {
+        using (StreamReader sr = new StreamReader("strangewords.txt"))
+        {
+            while (!sr.EndOfStream)
+            {
+                string? line = sr.ReadLine();
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    string[] parts = line.Split(',', 2);
+                    if (parts.Length == 2)
+                    {
+                        string word = parts[0].Trim();
+                        string meaning = parts[1].Trim();
+                        words[word] = meaning;
+                    }
+                }
+            }
+        }
+    }
+
+    static void playGame(string word, string defn, char[] attempt, ref double score)
+    {        
+        Console.Clear();
+        Console.WriteLine("\n\tL E X I C O\n\n\n");
+
+        Console.WriteLine("\n\t" + string.Join(" ", attempt));
+        Console.WriteLine("\n\nDefinition: " + defn + "\n");
+
+        string entry = "";
+        bool guessed = false;
+
+        while (!guessed)
+        {
+            Console.WriteLine("Enter word or 'H' for hint...");
+            entry = Console.ReadLine().ToLower();
+            if (entry == word)
+            {
+                Console.WriteLine($"CORRECT! You scored {Math.Round(score,0)}%");
+                Console.WriteLine("Press any key to continue...");
+                Console.ReadKey();
+                Main();
+            }
+            else if (entry == "h")
+            {
+                giveHint(word, attempt, ref score);
+                Console.WriteLine(string.Join(" ", attempt));
+            }
+            int blanks = 0;
+            for (int i = 0; i < attempt.Length; i++)
+            {
+                if (attempt[i] == '_')
+                {
+                    blanks++;
+                }
+            }
+            if (blanks == 0)
+            {
+                Console.WriteLine("You lose sorry!");
+                Console.WriteLine("Press any key...");
+                Console.ReadKey();
+                Main();
+            }
+            else
+            {
+                playGame(word, defn, attempt, ref score);
+            }
+        }
+    }
+
+    static void giveHint(string word, char[] attempt, ref double score)
+    {
+        score *= 0.9;
+        List<int> unrevealed = new List<int>();
+        for (int i = 0; i < word.Length; i++)
+        {
+            if (attempt[i] == '_')
+                unrevealed.Add(i);
+        }
+        if (unrevealed.Count > 0)
+        {
+            Random rand = new Random();
+            int idx = unrevealed[rand.Next(unrevealed.Count)];
+            attempt[idx] = word[idx];
+        }
+    }
+
+}

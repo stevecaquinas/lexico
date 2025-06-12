@@ -9,8 +9,9 @@
     <h2>LEXICO</h2>
     <div class="attempt" id="attempt"></div>
     <div class="definition" id="definition"></div>
-    <input type="text" id="guess" placeholder="Enter word or 'H' for hint">
+    <input type="text" id="guess" placeholder="Enter word">
     <button id="submitBtn" onclick="submitGuess()">Submit</button>
+    <button id="hintBtn" onclick="hintClick()">Hint</button>
     <div class="score" id="score"></div>
     <div id="message"></div>
     <button onclick="restartGame()">Restart</button>
@@ -44,6 +45,7 @@ function updateDisplay() {
     document.getElementById('score').textContent = "Score: " + Math.round(score) + "%";
     document.getElementById('guess').disabled = gameOver;
     document.getElementById('submitBtn').disabled = gameOver;
+    document.getElementById('hintBtn').disabled = gameOver;
 }
 
 function submitGuess() {
@@ -54,14 +56,18 @@ function submitGuess() {
         document.getElementById('message').textContent = `CORRECT! You scored ${Math.round(score)}%`;
         gameOver = true;
         endGame();
-    } else if (guess === 'h') {
-        giveHint();
-        checkBlanks();
     } else {
         document.getElementById('message').textContent = "Try again!";
     }
     updateDisplay();
     document.getElementById('guess').value = '';
+}
+
+function hintClick() {
+    if (gameOver) return;
+    giveHint();
+    checkBlanks();
+    updateDisplay();
 }
 
 function giveHint() {
@@ -88,6 +94,7 @@ function checkBlanks() {
 function endGame() {
     document.getElementById('guess').disabled = true;
     document.getElementById('submitBtn').disabled = true;
+    document.getElementById('hintBtn').disabled = true;
 }
 
 function restartGame() {
